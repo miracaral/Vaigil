@@ -66,9 +66,13 @@ func (m *Mediator) remember(out string) {
 
 func (m *Mediator) argsCarryTainted(tool string, args map[string]string) bool {
 	for _, name := range payloadArgs[tool] {
-		for _, f := range m.fragments {
-			if strings.Contains(args[name], f) {
-				return true
+		// Check the raw value and every decoded form, so encoding the
+		// data (base64, hex, %xx) does not hide it.
+		for _, v := range decodings(args[name]) {
+			for _, f := range m.fragments {
+				if strings.Contains(v, f) {
+					return true
+				}
 			}
 		}
 	}
