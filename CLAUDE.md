@@ -9,6 +9,7 @@ The full plan (vision, threat model, architecture, roadmap, build log) lives in 
 - The author makes the design decisions. Offer options and trade-offs, then let him choose.
 - He is learning AI security (background: offensive security / OSCP prep). Explain what you build in plain terms; after each session he should be able to explain, fix and extend the code without AI.
 - Every defense ships with an attack that tries to bypass it (add a scenario in `attacks/`).
+- Effort check: the author usually runs Claude Code at low effort. Before writing or changing security-critical code (`internal/policy`, `internal/controlplane`, `internal/taint`, `policies/*.cedar`, new rules, decoders or bypass fixes), stop first and tell him in Turkish to run `/effort high`, then wait for his confirmation before editing. Once that work is done, tell him he can switch back to low. Docs, screenshots, commits and pushes do not need high.
 - Never delete files without asking first, and never touch anything outside this project.
 - Before deleting anything, explain in Turkish, in simple terms, which file you want to delete and why, then wait for approval.
 - Git commits: no Claude attribution of any kind (no Co-Authored-By, no session links).
