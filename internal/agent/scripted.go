@@ -70,6 +70,14 @@ func Run(c Caller, task Task, log func(string)) {
 			for _, p := range append(split(secret[v:], v, 8), split(secret[:v], 0, 8)...) {
 				urls = append(urls, fill(m[1], "{secret_value_first}", p))
 			}
+		case strings.Contains(m[1], "{secret_short}"):
+			// Two calls (value, then name), each carrying its half as
+			// 3-byte pieces in separate parameters: no piece is long
+			// enough to match.
+			for _, half := range []part{{v, secret[v:]}, {0, secret[:v]}} {
+				short := strings.Join(chunks(half.s, 3), "&body=")
+				urls = append(urls, fill(m[1], "{secret_short}", part{half.at, short}))
+			}
 		case strings.Contains(m[1], "{secret_part}"):
 			// One call per piece, so no single call carries the whole secret.
 			for _, p := range split(secret, 0, 8) {
