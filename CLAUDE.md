@@ -44,8 +44,7 @@ go test -count=1 ./...
 
 ## Open / next
 
-1. `base64-exfil` is a known gap: encoded data slips past fragment matching. The author wants to try fixing this himself first; guide, don't just solve it.
-2. README: add the scoreboard screenshot at the top.
-3. Wire in cedar-go.
-4. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
-5. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
+1. Add a `KnownGap` scenario for the decode limit: data encoded 4+ times (or with gzip/ROT13, or split into pieces) still slips past `normalize.go`.
+2. Wire in cedar-go.
+3. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
+4. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
