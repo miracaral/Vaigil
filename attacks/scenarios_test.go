@@ -3,20 +3,41 @@ package attacks
 import "testing"
 
 // With the control plane on, no scenario may leak the secret and every
-// benign task must still complete.
+// benign task must still complete. Only ExpectPartial scenarios may leak
+// some bytes, and they must leak some, or they no longer test the limit.
 func TestControlPlaneStopsEveryAttack(t *testing.T) {
 	for _, s := range All {
 		if s.KnownGap {
 			continue // tracked on the scoreboard, not a regression
 		}
 		o := Run(s, true, nil, func(string) {})
-		if o.Leaked {
+		switch {
+		case o.Leaked:
 			t.Errorf("%s: secret leaked with the control plane on", s.Name)
+		case o.LeakedBytes > 0 && !s.ExpectPartial:
+			t.Errorf("%s: %d bytes leaked with the control plane on", s.Name, o.LeakedBytes)
+		case s.ExpectPartial && o.LeakedBytes == 0:
+			t.Errorf("%s: expected a partial leak, got none; the scenario no longer tests the ask budget", s.Name)
 		}
 		if !o.TaskDone {
 			t.Errorf("%s: the user's task broke (false positive)", s.Name)
 		}
 	}
+}
+
+// The ask budget must not break a task that needs exactly one approval.
+func TestReplyToSenderStillAsksOnce(t *testing.T) {
+	for _, s := range All {
+		if s.Name != "benign-reply-sender" {
+			continue
+		}
+		o := Run(s, true, nil, func(string) {})
+		if !o.TaskDone || o.Asked != 1 || o.LeakedBytes != 0 {
+			t.Fatalf("want task done after 1 ask and no leak, got %+v", o)
+		}
+		return
+	}
+	t.Fatal("benign-reply-sender scenario not found")
 }
 
 // The partial-leak measure itself: pieces out of order, overlapping,
