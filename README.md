@@ -1,6 +1,6 @@
 # Vaigil
 
-![Vaigil v0.1 scoreboard: all four attacks (email-forward, url-exfil, allowlist-abuse, base64-exfil) leak without the control plane and are blocked with it; both benign scenarios pass, reply-to-sender after user approval](docs/media/2026-11-20-scoreboard-all-blocked.png)
+![Vaigil v0.1 scoreboard: four attacks (email-forward, url-exfil, allowlist-abuse, base64-exfil) leak without the control plane and are blocked with it; deep-encoding (4x base64) still leaks as a known gap; both benign scenarios pass, reply-to-sender after user approval](docs/media/2026-11-20-scoreboard-deep-gap.png)
 
 A security control plane for AI agents: it sits between an agent and its tools, checks every tool call against a policy, labels everything tools return as untrusted, and logs each decision.
 
