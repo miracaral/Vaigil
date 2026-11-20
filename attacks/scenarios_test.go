@@ -73,7 +73,7 @@ func TestCoveragePlacesPiecesByPosition(t *testing.T) {
 		{[]piece{{9, "HIJ"}}, 0},             // runs past the end
 		{[]piece{{-1, "HIJ"}}, 3},            // no position: first match
 	} {
-		if got := count(coverage("ABCDEFGHIJ", c.pieces)); got != c.want {
+		if got := coverage("ABCDEFGHIJ", c.pieces).Count(); got != c.want {
 			t.Errorf("coverage(%v) = %d, want %d", c.pieces, got, c.want)
 		}
 	}
