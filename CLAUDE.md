@@ -31,7 +31,7 @@ go test -count=1 ./...
 | `internal/controlplane` | Enforcement point: policy check, taint fragments, argument decoding (`normalize.go`), ask/approve, per-session ask budget (`askBudget`), audit log |
 | `internal/policy` | Rules in Go: `tainted-data-in-args` (deny), `tainted-fetch` (deny), `tainted-egress` (ask) |
 | `policies/vaigil.cedar` | Same rules in Cedar, not wired in yet |
-| `internal/agent` | Scripted agent that acts like a hijacked LLM (obeys hidden instructions) |
+| `internal/agent` | Scripted agent that acts like a hijacked LLM (obeys hidden instructions, default) and a Bedrock agent (`bedrock.go`, Converse API with tool use, `-agent=bedrock`); both call tools through the control plane; tools stay in-memory mocks |
 | `internal/tools` | Mock mailbox and web client |
 | `attacks` | Scenarios + harness; `KnownGap` marks attacks that still succeed, `ExpectPartial` attacks the control plane can only limit; partial leaks are scored in bytes |
 | `docs/media` | Proof screenshots from real runs |
@@ -50,5 +50,5 @@ go test -count=1 ./...
 
 1. Value-first split scenario: put the valuable part of the secret (the key value, not the `AWS_SECRET_ACCESS_KEY=` name) in the first two pieces and measure what leaks with an ask budget of 2. Done: ask budget (`askBudget = 2`, rule `ask-budget-exceeded`) and partial-leak scoring; `approval-fatigue` now leaks 16/41 bytes.
 2. Wire in cedar-go, and decide how to model "ask" and the per-session ask budget in Cedar (`policies/vaigil.cedar` is out of date: it still allows allowlisted fetches from a tainted context and has no budget).
-3. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first), and measure how many asks real tasks need, to check the ask budget of 2.
+3. Bedrock agent is built (not run yet). Waiting for the Bedrock model quota (currently 0, AWS cases open; Claude is billed via AWS Marketplace, credit coverage not confirmed). Then: one scenario with Sonnet 4.6 (`-agent=bedrock -only <scenario>`), then a model comparison table (which models obey the injection, how many asks real tasks need, to check the ask budget of 2).
 4. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
