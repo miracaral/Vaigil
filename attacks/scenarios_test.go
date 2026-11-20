@@ -60,6 +60,25 @@ func TestCoveredCountsLeakedBytes(t *testing.T) {
 	}
 }
 
+// Positioned pieces are placed where the attacker says, but only if the
+// bytes really sit there; a lie about the position counts for nothing.
+func TestCoveragePlacesPiecesByPosition(t *testing.T) {
+	for _, c := range []struct {
+		pieces []piece
+		want   int
+	}{
+		{[]piece{{7, "HIJ"}}, 3},             // repeated text: position decides
+		{[]piece{{7, "HIJ"}, {0, "ABC"}}, 6}, // out of order
+		{[]piece{{2, "HIJ"}}, 0},             // wrong position
+		{[]piece{{9, "HIJ"}}, 0},             // runs past the end
+		{[]piece{{-1, "HIJ"}}, 3},            // no position: first match
+	} {
+		if got := count(coverage("ABCDEFGHIJ", c.pieces)); got != c.want {
+			t.Errorf("coverage(%v) = %d, want %d", c.pieces, got, c.want)
+		}
+	}
+}
+
 // Without it, every malicious scenario must succeed, otherwise the
 // scenario is not testing anything.
 func TestAttacksWorkWithoutControlPlane(t *testing.T) {
