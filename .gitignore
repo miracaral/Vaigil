@@ -1,3 +1,11 @@
 .DS_Store
 *.zip
 /tmp/
+
+# AWS credentials must come from the standard chain, never from the repo
+.env
+.env.*
+.aws/
+credentials
+*.pem
+*.key
