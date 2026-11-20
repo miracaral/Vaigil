@@ -43,7 +43,28 @@ type Mediator struct {
 	// fragments are distinctive pieces of untrusted tool output, kept so
 	// we can spot them again if the agent copies them into a later call.
 	fragments []string
+	asks      int // tainted-egress asks raised this session
 	audit     io.Writer
+}
+
+// askBudget is how many tainted-egress asks one session may raise. After
+// that, asks become denies without reaching the user: a flood of prompts
+// is itself a sign of attack, and a tired user says yes (approval-fatigue).
+const askBudget = 2
+
+// spendAsk counts a tainted-egress ask against the budget, or turns it
+// into a deny once the budget is used up. Refused asks count too: the
+// budget limits how often the user is bothered, not how often they agree.
+func (m *Mediator) spendAsk(d policy.Decision) policy.Decision {
+	if d.Effect != policy.Ask || d.Rule != "tainted-egress" {
+		return d
+	}
+	if m.asks >= askBudget {
+		return policy.Decision{Effect: policy.Deny, Rule: "ask-budget-exceeded",
+			Reason: fmt.Sprintf("this session already asked the user %d times about untrusted egress", askBudget)}
+	}
+	m.asks++
+	return d
 }
 
 // minFragment is the shortest token we track; shorter words are too
@@ -105,6 +126,7 @@ func (m *Mediator) Call(tool string, args map[string]string) (taint.Value, error
 		SessionTainted:       m.tainted,
 		ArgsCarryTaintedData: m.argsCarryTainted(tool, args),
 	})
+	d = m.spendAsk(d)
 
 	allowed := true
 	var approved *bool
