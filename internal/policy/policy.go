@@ -29,7 +29,8 @@ type Request struct {
 	URL string
 	// UserNamedRecipients are addresses the user typed in their own request.
 	UserNamedRecipients []string
-	// AllowedDomains may be fetched even when the context is tainted.
+	// AllowedDomains may be fetched from a tainted context if the user
+	// approves; any other domain is denied.
 	AllowedDomains []string
 	// SessionTainted is true once untrusted content has entered the agent's context.
 	SessionTainted bool
@@ -103,7 +104,10 @@ func evalWebFetch(r Request) Decision {
 	for _, d := range r.AllowedDomains {
 		d = strings.ToLower(d)
 		if host == d || strings.HasSuffix(host, "."+d) {
-			return Decision{Allow, "allowlisted-domain", host + " is on the allowlist"}
+			// Not a plain allow: data can still leave in pieces too small for
+			// fragment matching (split-secret), so a human decides.
+			return Decision{Ask, "tainted-egress",
+				fmt.Sprintf("context holds untrusted data and the user never asked to fetch from %q", host)}
 		}
 	}
 	return Decision{Deny, "tainted-fetch",

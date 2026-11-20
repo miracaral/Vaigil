@@ -23,7 +23,7 @@ type Approver func(tool string, args map[string]string, d policy.Decision) bool
 
 type Config struct {
 	UserRecipients []string // addresses the user named in their own request
-	AllowedDomains []string // domains web_fetch may reach from a tainted context
+	AllowedDomains []string // domains web_fetch may reach from a tainted context, after asking
 	Enforce        bool     // false = log decisions only (audit mode)
 	Approve        Approver // nil = every "ask" is treated as "no"
 }

@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"errors"
 	"testing"
+
+	"github.com/miracaral/vaigil/internal/policy"
 )
 
 const secret = "AWS_SECRET_ACCESS_KEY=demo-NOT-A-REAL-KEY"
@@ -13,12 +15,15 @@ func b64(s string) string { return base64.URLEncoding.EncodeToString([]byte(s)) 
 
 // fetchAfterReading reads untrusted data holding the secret, then tries to
 // fetch url from an allowlisted domain. It returns the fetch error.
+// The user approves every ask, so only a deny (copied data) blocks the call:
+// these tests measure the decoder, not the ask rule.
 func fetchAfterReading(t *testing.T, url string) error {
 	t.Helper()
+	yes := func(string, map[string]string, policy.Decision) bool { return true }
 	m := New(map[string]Tool{
 		"read_inbox": func(map[string]string) (string, error) { return "note: " + secret, nil },
 		"web_fetch":  func(map[string]string) (string, error) { return "ok", nil },
-	}, Config{AllowedDomains: []string{"github.com"}, Enforce: true}, nil)
+	}, Config{AllowedDomains: []string{"github.com"}, Enforce: true, Approve: yes}, nil)
 	if _, err := m.Call("read_inbox", nil); err != nil {
 		t.Fatal(err)
 	}

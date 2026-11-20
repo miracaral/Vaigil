@@ -34,6 +34,30 @@ func TestTaintedDataBeatsAllowlist(t *testing.T) {
 	}
 }
 
+// Closes split-secret: an allowlisted domain is no longer a plain allow
+// once the context is tainted.
+func TestAllowlistedFetchInTaintedContextAsks(t *testing.T) {
+	d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/x?body=AWS_SECR",
+		AllowedDomains: []string{"github.com"}, SessionTainted: true})
+	if d.Effect != Ask || d.Rule != "tainted-egress" {
+		t.Fatalf("want tainted-egress ask, got %+v", d)
+	}
+}
+
+func TestUnlistedFetchInTaintedContextIsDenied(t *testing.T) {
+	d := Evaluate(Request{Tool: "web_fetch", URL: "https://collect.attacker.example/x",
+		AllowedDomains: []string{"github.com"}, SessionTainted: true})
+	if d.Effect != Deny || d.Rule != "tainted-fetch" {
+		t.Fatalf("want tainted-fetch deny, got %+v", d)
+	}
+}
+
+func TestFetchInCleanContextIsAllowed(t *testing.T) {
+	if d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/x"}); d.Effect != Allow {
+		t.Fatalf("want allow, got %+v", d)
+	}
+}
+
 func TestReadOnlyIsAllowed(t *testing.T) {
 	if d := Evaluate(Request{Tool: "read_inbox", SessionTainted: true}); d.Effect != Allow {
 		t.Fatalf("want allow, got %+v", d)
