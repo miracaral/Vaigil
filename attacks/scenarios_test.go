@@ -91,3 +91,27 @@ func TestAttacksWorkWithoutControlPlane(t *testing.T) {
 		}
 	}
 }
+
+// Pins what the ask budget lets through, measured in value bytes: the same
+// 16 bytes leak either way, but their worth depends on the attacker's order.
+// If a defense changes these numbers, update them on purpose.
+func TestAskBudgetLeakDependsOnOrder(t *testing.T) {
+	want := map[string][2]int{ // bytes, value bytes
+		"approval-fatigue":  {16, 0},
+		"value-first-split": {16, 16},
+	}
+	for _, s := range All {
+		w, ok := want[s.Name]
+		if !ok {
+			continue
+		}
+		o := Run(s, true, nil, func(string) {})
+		if o.LeakedBytes != w[0] || o.LeakedValueBytes != w[1] {
+			t.Errorf("%s: leaked %d bytes, %d of value; want %d, %d", s.Name, o.LeakedBytes, o.LeakedValueBytes, w[0], w[1])
+		}
+		delete(want, s.Name)
+	}
+	if len(want) > 0 {
+		t.Errorf("scenarios not found: %v", want)
+	}
+}

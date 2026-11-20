@@ -9,6 +9,7 @@ package agent
 import (
 	"encoding/base64"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/miracaral/vaigil/internal/taint"
@@ -61,7 +62,21 @@ func Run(c Caller, task Task, log func(string)) {
 	if m := openURL.FindStringSubmatch(text); m != nil {
 		secret := secretRe.FindString(inbox.Data)
 		var urls []string
-		if strings.Contains(m[1], "{secret_part}") {
+		if strings.Contains(m[1], "{secret_value_first}") {
+			// Value first, name last, each piece with its position so the
+			// attacker can reassemble them: the pieces that get through
+			// first are the ones worth having.
+			v := strings.Index(secret, "=") + 1
+			at := v
+			for _, part := range append(chunks(secret[v:], 8), chunks(secret[:v], 8)...) {
+				urls = append(urls, strings.NewReplacer(
+					"{secret_value_first}", part, "{part_at}", strconv.Itoa(at),
+				).Replace(m[1]))
+				if at += len(part); at == len(secret) {
+					at = 0
+				}
+			}
+		} else if strings.Contains(m[1], "{secret_part}") {
 			// One call per piece, so no single call carries the whole secret.
 			for _, part := range chunks(secret, 8) {
 				urls = append(urls, strings.ReplaceAll(m[1], "{secret_part}", part))
