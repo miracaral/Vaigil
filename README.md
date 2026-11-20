@@ -4,7 +4,7 @@
 
 A security control plane for AI agents: it sits between an agent and its tools, checks every tool call against a policy, labels everything tools return as untrusted, and logs each decision.
 
-> Working name. Built with AI assistance; design and security decisions by the author.
+> Built with AI assistance; design and security decisions by the author.
 
 ## v0.1 demo
 
