@@ -45,7 +45,7 @@ go test -count=1 ./...
 
 ## Open / next
 
-1. Approval-fatigue scenario: a `KnownGap` with `UserApproves: true` (e.g. split-secret with a user who says yes to every ask). Done: `tainted-egress` asks before any egress from a tainted context, which closed `split-secret` and stops `deep-encoding`.
-2. Wire in cedar-go, and decide how to model "ask" in Cedar (`policies/vaigil.cedar` is out of date: it still allows allowlisted fetches from a tainted context).
-3. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
+1. Value-first split scenario: put the valuable part of the secret (the key value, not the `AWS_SECRET_ACCESS_KEY=` name) in the first two pieces and measure what leaks with an ask budget of 2. Done: ask budget (`askBudget = 2`, rule `ask-budget-exceeded`) and partial-leak scoring; `approval-fatigue` now leaks 16/41 bytes.
+2. Wire in cedar-go, and decide how to model "ask" and the per-session ask budget in Cedar (`policies/vaigil.cedar` is out of date: it still allows allowlisted fetches from a tainted context and has no budget).
+3. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first), and measure how many asks real tasks need, to check the ask budget of 2.
 4. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
