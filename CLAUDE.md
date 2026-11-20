@@ -28,12 +28,12 @@ go test -count=1 ./...
 
 | Path | What |
 | --- | --- |
-| `internal/controlplane` | Enforcement point: policy check, taint fragments, ask/approve, audit log |
+| `internal/controlplane` | Enforcement point: policy check, taint fragments, argument decoding (`normalize.go`), ask/approve, per-session ask budget (`askBudget`), audit log |
 | `internal/policy` | Rules in Go: `tainted-data-in-args` (deny), `tainted-fetch` (deny), `tainted-egress` (ask) |
 | `policies/vaigil.cedar` | Same rules in Cedar, not wired in yet |
 | `internal/agent` | Scripted agent that acts like a hijacked LLM (obeys hidden instructions) |
 | `internal/tools` | Mock mailbox and web client |
-| `attacks` | Scenarios + harness; `KnownGap` marks attacks that still succeed |
+| `attacks` | Scenarios + harness; `KnownGap` marks attacks that still succeed, `ExpectPartial` attacks the control plane can only limit; partial leaks are scored in bytes |
 | `docs/media` | Proof screenshots from real runs |
 
 ## Decisions so far
@@ -42,6 +42,9 @@ go test -count=1 ./...
 - Scripted agent first so attacks are free and repeatable; a real Amazon Bedrock agent replaces it next. The control plane must not change for that.
 - Separate WHERE (recipient) from WHAT (body, URL): copied untrusted content is always denied; an unexpected recipient is asked about.
 - Found and fixed the allowlist-abuse bypass (secret leaked via an allowlisted github.com URL) with the `tainted-data-in-args` rule; regression test in `internal/policy/policy_test.go`.
+- Closed base64-exfil by decoding egress arguments (URL, base64, hex) before matching, reusing `tainted-data-in-args` instead of a new rule; decoding is capped at 3 layers and a test pins the limit.
+- Closed split-secret with option 3 of 3: `tainted-egress` asks before any egress from a tainted context, including fetches from allowlisted domains (close the class, not the trick).
+- Ask budget of 2 per session lives in the mediator (session state), not in the stateless policy; refused asks count too; a bounded partial leak is accepted for approval-fatigue.
 
 ## Open / next
 
