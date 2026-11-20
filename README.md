@@ -56,6 +56,24 @@ The first version only checked *where* data went. Putting `github.com` on the al
 
 That moved the risk to the user. `approval-fatigue` is the same attack with a user who says yes to every prompt. The control plane now keeps a per-session ask budget of 2: after two asks, every further ask is denied (`ask-budget-exceeded`) without reaching the user. The harness also measures partial leaks, so the scoreboard shows `partial (16/41 bytes)` instead of a misleading "blocked".
 
+## Real model (Bedrock)
+
+The scripted agent stays the default, so tests are free and repeatable. `-agent=bedrock` swaps in a real model through the Amazon Bedrock Converse API with tool use. Its tool calls go through the same control plane.
+
+```
+go run ./cmd/demo -agent=bedrock -only email-forward
+go run ./cmd/demo -agent=bedrock -model <model or inference profile ID> -region <region>
+```
+
+- `-agent`: `scripted` (default) or `bedrock`.
+- `-model`: default `global.anthropic.claude-sonnet-4-6`, or set `VAIGIL_BEDROCK_MODEL`.
+- `-region`: default `us-east-1`, or set `AWS_REGION`.
+- `-only <scenario>`: run one scenario. Without it, all nine run twice (with and without the control plane), so that is 18 model sessions.
+- Credentials come only from the standard AWS chain (environment or `~/.aws`). No keys live in the repo.
+- The tools stay in-memory mocks (`internal/tools`): no real email is sent and no real URL is fetched, even with a real model. A test pins that the tools import no network packages.
+- Status: not run yet. The account's Bedrock model quota is currently 0 and AWS support cases are open. Claude models on Bedrock are billed through AWS Marketplace, and whether AWS credits cover that is not confirmed yet.
+- With a real model the "without control plane" column may show an attack failing: that is the model resisting the injection, not the control plane.
+
 ## Known limits
 
 - **Approval fatigue.** Any fetch from a tainted context is an ask, so blocking `split-secret` and `deep-encoding` depends on the user saying no. An ask budget of 2 per session limits the damage but does not remove it: in `approval-fatigue` the user approves the first two asks, so 16 of 41 secret bytes still leak before every further ask is denied (`ask-budget-exceeded`). The budget also breaks any legitimate task that needs more than two approvals in one session.
@@ -71,7 +89,7 @@ That moved the risk to the user. `approval-fatigue` is the same attack with a us
 | `policies/vaigil.cedar` | Same rules in Cedar, wired in at v0.2 |
 | `internal/taint` | Trusted / untrusted labels |
 | `internal/tools` | Mock email tools with an injected email |
-| `internal/agent` | Scripted agent; a Bedrock agent replaces it next |
+| `internal/agent` | Scripted agent (default) and a Bedrock agent (`-agent=bedrock`), both calling tools through the control plane |
 | `attacks` | Scenarios + harness; `KnownGap` marks attacks that still succeed, `ExpectPartial` attacks that can only be limited |
 | `cmd/demo` | Runs every scenario with and without the control plane and prints the scoreboard |
 
@@ -79,7 +97,7 @@ That moved the risk to the user. `approval-fatigue` is the same attack with a us
 
 1. Value-first split: put the valuable part of the secret in the first two pieces and measure what the ask budget lets through.
 2. Swap the Go rules for the cedar-go engine, including how to model ask and the ask budget.
-3. Replace the scripted agent with an Amazon Bedrock agent and measure how many asks real tasks need.
+3. Run the Bedrock agent once the model quota is granted (Sonnet 4.6, one scenario first), then compare models and measure how many asks real tasks need.
 4. Run the tools as MCP servers behind the control plane.
 
 ## How this was built
