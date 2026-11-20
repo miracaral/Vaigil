@@ -4,8 +4,6 @@
 
 A security control plane for AI agents: it sits between an agent and its tools, checks every tool call against a policy, labels everything tools return as untrusted, and logs each decision.
 
-> Built with AI assistance; design and security decisions by the author.
-
 ## v0.1 demo
 
 ```
@@ -74,3 +72,7 @@ The first version only checked *where* data went. Putting `github.com` on the al
 1. Replace the scripted agent with an Amazon Bedrock agent.
 2. Swap the Go rules for the cedar-go engine.
 3. Run the tools as MCP servers behind the control plane.
+
+## How this was built
+
+Built with AI assistance; design and security decisions by the author.
