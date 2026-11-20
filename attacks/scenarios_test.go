@@ -92,13 +92,15 @@ func TestAttacksWorkWithoutControlPlane(t *testing.T) {
 	}
 }
 
-// Pins what the ask budget lets through, measured in value bytes: the same
-// 16 bytes leak either way, but their worth depends on the attacker's order.
+// Pins what the ask budget and the coverage limit let through, measured,
+// not wished for. Each scenario gets one approved piece of up to 8 bytes
+// past the coverage limit (8), plus a second approved piece shorter than
+// minMatch (4) that the limit cannot see: "Y" (1 byte) or "KEY" (3 bytes).
 // If a defense changes these numbers, update them on purpose.
 func TestAskBudgetLeakDependsOnOrder(t *testing.T) {
 	want := map[string][2]int{ // bytes, value bytes
-		"approval-fatigue":  {16, 0},
-		"value-first-split": {16, 16},
+		"approval-fatigue":  {9, 1},
+		"value-first-split": {11, 11},
 	}
 	for _, s := range All {
 		w, ok := want[s.Name]

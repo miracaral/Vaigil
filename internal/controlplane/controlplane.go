@@ -43,7 +43,8 @@ type Mediator struct {
 	// fragments are distinctive pieces of untrusted tool output, kept so
 	// we can spot them again if the agent copies them into a later call.
 	fragments []string
-	asks      int // tainted-egress asks raised this session
+	asks      int      // tainted-egress asks raised this session
+	sent      []string // content (WHAT) of egress calls sent from a tainted context
 	audit     io.Writer
 }
 
@@ -126,6 +127,7 @@ func (m *Mediator) Call(tool string, args map[string]string) (taint.Value, error
 		SessionTainted:       m.tainted,
 		ArgsCarryTaintedData: m.argsCarryTainted(tool, args),
 	})
+	d = m.checkCoverage(tool, args, d)
 	d = m.spendAsk(d)
 
 	allowed := true
@@ -143,6 +145,7 @@ func (m *Mediator) Call(tool string, args map[string]string) (taint.Value, error
 	if !allowed {
 		return taint.Value{}, fmt.Errorf("%w: %s", ErrBlocked, d.Reason)
 	}
+	m.recordEgress(tool, args)
 
 	out, err := fn(args)
 	if err != nil {
