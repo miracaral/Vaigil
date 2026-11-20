@@ -45,7 +45,7 @@ go test -count=1 ./...
 
 ## Open / next
 
-1. More bypass scenarios for `normalize.go` (`deep-encoding`, 4x base64, is done and tracked as a known gap): gzip/ROT13 encoding, and the secret split into pieces across arguments or calls.
-2. Wire in cedar-go.
+1. Approval-fatigue scenario: a `KnownGap` with `UserApproves: true` (e.g. split-secret with a user who says yes to every ask). Done: `tainted-egress` asks before any egress from a tainted context, which closed `split-secret` and stops `deep-encoding`.
+2. Wire in cedar-go, and decide how to model "ask" in Cedar (`policies/vaigil.cedar` is out of date: it still allows allowlisted fetches from a tainted context).
 3. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
 4. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
