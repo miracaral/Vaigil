@@ -45,8 +45,7 @@ go test -count=1 ./...
 ## Open / next
 
 1. `base64-exfil` is a known gap: encoded data slips past fragment matching. The author wants to try fixing this himself first; guide, don't just solve it.
-2. Push to GitHub: repo `miracaral/vaigil` (first commit exists locally; author must set his own git email and amend before pushing).
-3. README: add the scoreboard screenshot at the top.
-4. Wire in cedar-go.
-5. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
-6. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
+2. README: add the scoreboard screenshot at the top.
+3. Wire in cedar-go.
+4. Replace the scripted agent with an Amazon Bedrock agent (needs AWS budget alarm + Bedrock model access first).
+5. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.

@@ -100,6 +100,7 @@ Screenshots go in `docs/media/YYYY-MM-DD-<name>.png`, always from real runs.
 
 | Date | Phase | Built | Learned | Decisions |
 | --- | --- | --- | --- | --- |
+| 2026-11-20 | v0.1 | First push to GitHub (miracaral/Vaigil); separate SSH key for GitHub; verified GitHub host key fingerprint before trusting it; deletion-safety settings in `.claude/settings.json` (ask before rm/git rm/git clean, deny reset --hard and force push) | Verify a host key fingerprint against the official value instead of blindly typing yes; one key per purpose limits blast radius | Dedicated GitHub key instead of reusing the k3s key; destructive git commands blocked by config, not just by convention |
 | 2026-11-20 | v0.1 | Ask mode, reply-to-sender check, base64 attack as known gap; ran on own Mac; named the project Vaigil; first commit | Separate WHERE (recipient) from WHAT (content); encoding beats string matching | Ask instead of deny for unexpected recipients; keep known gaps visible on the scoreboard |
 | 2026-11-19 | v0.1 | Mediator, taint labels, 3 rules, audit log, attack harness, Cedar draft | Checking only where data goes is not enough; an allowlisted domain anyone can post to still leaks | Go + Cedar; scripted agent first, Bedrock next; added tainted-data-in-args after finding the allowlist-abuse bypass |
 | 2026-11-19 | Planning | Plan, threat model, roadmap | Prompt injection is one of eight AI security areas | Merged the control plane with the Bedrock "build, break, secure" idea |
