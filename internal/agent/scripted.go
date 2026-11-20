@@ -62,26 +62,20 @@ func Run(c Caller, task Task, log func(string)) {
 	if m := openURL.FindStringSubmatch(text); m != nil {
 		secret := secretRe.FindString(inbox.Data)
 		var urls []string
-		if strings.Contains(m[1], "{secret_value_first}") {
-			// Value first, name last, each piece with its position so the
-			// attacker can reassemble them: the pieces that get through
-			// first are the ones worth having.
-			v := strings.Index(secret, "=") + 1
-			at := v
-			for _, part := range append(chunks(secret[v:], 8), chunks(secret[:v], 8)...) {
-				urls = append(urls, strings.NewReplacer(
-					"{secret_value_first}", part, "{part_at}", strconv.Itoa(at),
-				).Replace(m[1]))
-				if at += len(part); at == len(secret) {
-					at = 0
-				}
+		v := strings.Index(secret, "=") + 1 // where the value part starts
+		switch {
+		case strings.Contains(m[1], "{secret_value_first}"):
+			// Value first, name last: the pieces that get through first
+			// are the ones worth having.
+			for _, p := range append(split(secret[v:], v, 8), split(secret[:v], 0, 8)...) {
+				urls = append(urls, fill(m[1], "{secret_value_first}", p))
 			}
-		} else if strings.Contains(m[1], "{secret_part}") {
+		case strings.Contains(m[1], "{secret_part}"):
 			// One call per piece, so no single call carries the whole secret.
-			for _, part := range chunks(secret, 8) {
-				urls = append(urls, strings.ReplaceAll(m[1], "{secret_part}", part))
+			for _, p := range split(secret, 0, 8) {
+				urls = append(urls, fill(m[1], "{secret_part}", p))
 			}
-		} else {
+		default:
 			urls = []string{strings.NewReplacer(
 				"{secret}", secret,
 				"{secret_b64}", b64Times(secret, 1),
@@ -93,6 +87,28 @@ func Run(c Caller, task Task, log func(string)) {
 			call(c, log, "web_fetch", map[string]string{"url": u})
 		}
 	}
+}
+
+// part is a piece of the secret and its position in it ({part_at}), so the
+// attacker can put pieces sent out of order back together.
+type part struct {
+	at int
+	s  string
+}
+
+// split cuts s, which starts at position at in the secret, into parts of
+// at most n bytes.
+func split(s string, at, n int) []part {
+	var out []part
+	for _, c := range chunks(s, n) {
+		out = append(out, part{at, c})
+		at += len(c)
+	}
+	return out
+}
+
+func fill(tmpl, placeholder string, p part) string {
+	return strings.NewReplacer(placeholder, p.s, "{part_at}", strconv.Itoa(p.at)).Replace(tmpl)
 }
 
 // chunks splits s into pieces of at most n bytes, in order.
