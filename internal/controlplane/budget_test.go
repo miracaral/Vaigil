@@ -3,7 +3,6 @@ package controlplane
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"strings"
 	"testing"
 
@@ -28,8 +27,10 @@ func taintedSession(t *testing.T) (*Mediator, *int, *bytes.Buffer) {
 	return m, &asked, audit
 }
 
+// fetch carries no content (WHAT), so tainted-egress-novel-data lets it
+// through and the ask rule is what decides.
 func fetch(m *Mediator, i int) error {
-	_, err := m.Call("web_fetch", map[string]string{"url": fmt.Sprintf("https://github.com/x?i=%d", i)})
+	_, err := m.Call("web_fetch", map[string]string{"url": "https://github.com/"})
 	return err
 }
 

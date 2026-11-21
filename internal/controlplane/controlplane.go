@@ -22,6 +22,7 @@ type Tool func(args map[string]string) (string, error)
 type Approver func(tool string, args map[string]string, d policy.Decision) bool
 
 type Config struct {
+	UserTask       string   // what the user typed: trusted content for egress
 	UserRecipients []string // addresses the user named in their own request
 	AllowedDomains []string // domains web_fetch may reach from a tainted context, after asking
 	Enforce        bool     // false = log decisions only (audit mode)
@@ -32,7 +33,7 @@ type Config struct {
 // addressing ("where"). Only these are checked for copied tainted data;
 // the address is judged by the policy rules themselves.
 var payloadArgs = map[string][]string{
-	"send_email": {"body"},
+	"send_email": {"subject", "body"},
 	"web_fetch":  {"url"}, // a URL is both: data hides in its path and query
 }
 
@@ -122,6 +123,9 @@ func (m *Mediator) Call(tool string, args map[string]string) (taint.Value, error
 		Tool:                 tool,
 		Recipient:            args["to"],
 		URL:                  args["url"],
+		Subject:              args["subject"],
+		Body:                 args["body"],
+		UserTask:             m.cfg.UserTask,
 		UserNamedRecipients:  m.cfg.UserRecipients,
 		AllowedDomains:       m.cfg.AllowedDomains,
 		SessionTainted:       m.tainted,

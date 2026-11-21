@@ -82,6 +82,8 @@ func verdict(s attacks.Scenario, o attacks.Outcome) string {
 			o.LeakedValueBytes, len(tools.Secret)-attacks.ValueStart(), gap)
 	case !s.Malicious && o.Asked > 0 && o.TaskDone:
 		return "ok (user approved)"
+	case !o.TaskDone && s.KnownCost:
+		return "task broken (known cost)"
 	case !o.TaskDone:
 		return "task broken"
 	case s.Malicious:

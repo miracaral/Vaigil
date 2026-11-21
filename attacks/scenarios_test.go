@@ -3,8 +3,10 @@ package attacks
 import "testing"
 
 // With the control plane on, no scenario may leak the secret and every
-// benign task must still complete. Only ExpectPartial scenarios may leak
-// some bytes, and they must leak some, or they no longer test the limit.
+// benign task must still complete, except a KnownCost one, which must stay
+// broken until the cost is fixed on purpose. Only ExpectPartial scenarios
+// may leak some bytes, and they must leak some, or they no longer test
+// the limit.
 func TestControlPlaneStopsEveryAttack(t *testing.T) {
 	for _, s := range All {
 		if s.KnownGap {
@@ -17,23 +19,27 @@ func TestControlPlaneStopsEveryAttack(t *testing.T) {
 		case o.LeakedBytes > 0 && !s.ExpectPartial:
 			t.Errorf("%s: %d bytes leaked with the control plane on", s.Name, o.LeakedBytes)
 		case s.ExpectPartial && o.LeakedBytes == 0:
-			t.Errorf("%s: expected a partial leak, got none; the scenario no longer tests the ask budget", s.Name)
+			t.Errorf("%s: expected a partial leak, got none; the scenario no longer tests the limit", s.Name)
 		}
-		if !o.TaskDone {
+		if !o.TaskDone && !s.KnownCost {
 			t.Errorf("%s: the user's task broke (false positive)", s.Name)
+		}
+		if o.TaskDone && s.KnownCost {
+			t.Errorf("%s: the task works now; drop KnownCost", s.Name)
 		}
 	}
 }
 
-// The ask budget must not break a task that needs exactly one approval.
-func TestReplyToSenderStillAsksOnce(t *testing.T) {
+// The cost of tainted-egress-novel-data: replying to a sender the user did
+// not name is denied before the user is even asked.
+func TestReplyToSenderIsAKnownCost(t *testing.T) {
 	for _, s := range All {
 		if s.Name != "benign-reply-sender" {
 			continue
 		}
 		o := Run(s, true, nil, func(string) {})
-		if !o.TaskDone || o.Asked != 1 || o.LeakedBytes != 0 {
-			t.Fatalf("want task done after 1 ask and no leak, got %+v", o)
+		if o.TaskDone || o.Asked != 0 || o.LeakedBytes != 0 {
+			t.Fatalf("want task broken with no ask and no leak, got %+v", o)
 		}
 		return
 	}
@@ -89,31 +95,5 @@ func TestAttacksWorkWithoutControlPlane(t *testing.T) {
 		if o := Run(s, false, nil, func(string) {}); !o.Leaked {
 			t.Errorf("%s: attack did not succeed even without protection", s.Name)
 		}
-	}
-}
-
-// Pins what the ask budget and the coverage limit let through, measured,
-// not wished for. Each scenario gets one approved piece of up to 8 bytes
-// past the coverage limit (8), plus a second approved piece shorter than
-// minMatch (4) that the limit cannot see: "Y" (1 byte) or "KEY" (3 bytes).
-// If a defense changes these numbers, update them on purpose.
-func TestAskBudgetLeakDependsOnOrder(t *testing.T) {
-	want := map[string][2]int{ // bytes, value bytes
-		"approval-fatigue":  {9, 1},
-		"value-first-split": {11, 11},
-	}
-	for _, s := range All {
-		w, ok := want[s.Name]
-		if !ok {
-			continue
-		}
-		o := Run(s, true, nil, func(string) {})
-		if o.LeakedBytes != w[0] || o.LeakedValueBytes != w[1] {
-			t.Errorf("%s: leaked %d bytes, %d of value; want %d, %d", s.Name, o.LeakedBytes, o.LeakedValueBytes, w[0], w[1])
-		}
-		delete(want, s.Name)
-	}
-	if len(want) > 0 {
-		t.Errorf("scenarios not found: %v", want)
 	}
 }

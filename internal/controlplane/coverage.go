@@ -32,22 +32,13 @@ const (
 func egressWhat(tool string, args map[string]string) []string {
 	switch tool {
 	case "send_email":
-		return []string{args["body"]}
+		return []string{args["subject"], args["body"]}
 	case "web_fetch":
 		u, err := url.Parse(args["url"])
 		if err != nil {
 			return []string{args["url"]} // unparsable: measure all of it
 		}
-		out := []string{u.Fragment}
-		q, err := url.ParseQuery(u.RawQuery)
-		if err != nil {
-			return append(out, u.RawQuery)
-		}
-		for k, vs := range q {
-			out = append(out, k)
-			out = append(out, vs...)
-		}
-		return out
+		return policy.QueryParts(u)
 	}
 	return nil
 }

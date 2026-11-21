@@ -37,7 +37,7 @@ func TestTaintedDataBeatsAllowlist(t *testing.T) {
 // Closes split-secret: an allowlisted domain is no longer a plain allow
 // once the context is tainted.
 func TestAllowlistedFetchInTaintedContextAsks(t *testing.T) {
-	d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/x?body=AWS_SECR",
+	d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/",
 		AllowedDomains: []string{"github.com"}, SessionTainted: true})
 	if d.Effect != Ask || d.Rule != "tainted-egress" {
 		t.Fatalf("want tainted-egress ask, got %+v", d)

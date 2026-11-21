@@ -27,6 +27,12 @@ type Request struct {
 	Recipient string
 	// URL is the address a web_fetch call targets.
 	URL string
+	// Subject and Body are the content of a send_email call.
+	Subject, Body string
+	// UserTask is what the user typed. With the allowlist it is the only
+	// trusted source of content an egress call may carry from a tainted
+	// context (tainted-egress-novel-data).
+	UserTask string
 	// UserNamedRecipients are addresses the user typed in their own request.
 	UserNamedRecipients []string
 	// AllowedDomains may be fetched from a tainted context if the user
@@ -84,9 +90,12 @@ func evalSendEmail(r Request) Decision {
 	if !r.SessionTainted {
 		return Decision{Allow, "clean-context", "no untrusted data in context"}
 	}
+	if d, novel := novelData(r); novel {
+		return d
+	}
 	// The recipient may come from the data (e.g. "reply to the sender").
-	// The body is already clean (tainted-data-in-args ran first), so this is
-	// a "where", not a "what" question: let the user decide.
+	// The content is made of trusted words only (novel-data ran first), so
+	// this is a "where", not a "what" question: let the user decide.
 	return Decision{Ask, "tainted-egress",
 		fmt.Sprintf("context holds untrusted data and %q was never named by the user", r.Recipient)}
 }
@@ -104,6 +113,9 @@ func evalWebFetch(r Request) Decision {
 	for _, d := range r.AllowedDomains {
 		d = strings.ToLower(d)
 		if host == d || strings.HasSuffix(host, "."+d) {
+			if nd, novel := novelData(r); novel {
+				return nd
+			}
 			// Not a plain allow: data can still leave in pieces too small for
 			// fragment matching (split-secret), so a human decides.
 			return Decision{Ask, "tainted-egress",

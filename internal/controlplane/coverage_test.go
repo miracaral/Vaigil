@@ -11,6 +11,11 @@ import (
 
 const testSecret = "AWS_SECRET_ACCESS_KEY=demo-NOT-A-REAL-KEY"
 
+// coverageTask names every word the coverage tests send, so
+// tainted-egress-novel-data lets them through and the coverage limit is
+// what decides. (A user who types the words themselves.)
+const coverageTask = "x body demo-NOT -A-REAL- 2d412d5245414c2d guide q demo page 2"
+
 // secretSession returns a mediator that approves every ask, with a
 // counter of asks and the audit log. The inbox is read only when read is
 // true, so the context starts clean otherwise.
@@ -21,7 +26,7 @@ func secretSession(t *testing.T, read bool) (*Mediator, *int, *bytes.Buffer) {
 	m := New(map[string]Tool{
 		"read_inbox": func(map[string]string) (string, error) { return "note: " + testSecret, nil },
 		"web_fetch":  func(map[string]string) (string, error) { return "ok", nil },
-	}, Config{AllowedDomains: []string{"github.com", "docs.aws.amazon.com"}, Enforce: true,
+	}, Config{UserTask: coverageTask, AllowedDomains: []string{"github.com", "docs.aws.amazon.com"}, Enforce: true,
 		Approve: func(string, map[string]string, policy.Decision) bool { asked++; return true },
 	}, audit)
 	if read {
@@ -60,8 +65,12 @@ func TestCoverageSeesEncodedPieces(t *testing.T) {
 	m, _, _ := secretSession(t, true)
 	_ = get(m, "https://github.com/x?body=demo-NOT")
 	// "-A-REAL-" in hex
+	audit := m.audit.(*bytes.Buffer)
 	if err := get(m, "https://github.com/x?body=2d412d5245414c2d"); !errors.Is(err, ErrBlocked) {
 		t.Fatalf("hex piece: want blocked, got %v", err)
+	}
+	if !strings.Contains(audit.String(), `"rule":"tainted-coverage-exceeded"`) {
+		t.Fatalf("want the coverage rule to block it:\n%s", audit)
 	}
 }
 
