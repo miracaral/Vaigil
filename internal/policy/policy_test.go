@@ -76,6 +76,20 @@ func TestAgentTextAskShowsFullText(t *testing.T) {
 	}
 }
 
+// Closes userinfo-exfil: any userinfo, even on an exact allowlisted host
+// and even if it looks harmless, is denied from a tainted context.
+func TestUserinfoIsDenied(t *testing.T) {
+	for _, u := range []string{"https://4157:5f53@github.com/", "https://github@github.com/", "https://:x@github.com/"} {
+		d := Evaluate(Request{Tool: "web_fetch", URL: u, UserTask: "github", AllowedDomains: []string{"github.com"}, SessionTainted: true})
+		if d.Effect != Deny || d.Rule != "tainted-egress-userinfo" {
+			t.Errorf("%s: want tainted-egress-userinfo deny, got %+v", u, d)
+		}
+	}
+	if d := Evaluate(Request{Tool: "web_fetch", URL: "https://user@github.com/"}); d.Effect != Allow {
+		t.Errorf("clean context: want allow, got %+v", d)
+	}
+}
+
 func TestFetchInCleanContextIsAllowed(t *testing.T) {
 	if d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/x"}); d.Effect != Allow {
 		t.Fatalf("want allow, got %+v", d)

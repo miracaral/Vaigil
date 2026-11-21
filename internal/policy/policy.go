@@ -116,6 +116,13 @@ func evalWebFetch(r Request) Decision {
 	if err != nil || u.Hostname() == "" {
 		return Decision{Deny, "bad-url", "could not parse the URL"}
 	}
+	// "user:password@" is neither host nor content to the other rules, so
+	// it could carry anything (userinfo-exfil). An agent has no reason to
+	// log in through a URL it builds from a tainted context.
+	if u.User != nil {
+		return Decision{Deny, "tainted-egress-userinfo",
+			"context holds untrusted data and the URL carries user:password@"}
+	}
 	host := strings.ToLower(u.Hostname())
 	for _, d := range r.AllowedDomains {
 		d = strings.ToLower(d)
