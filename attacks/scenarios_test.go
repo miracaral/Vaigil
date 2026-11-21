@@ -367,6 +367,10 @@ func TestEachScenarioIsDecidedByItsRule(t *testing.T) {
 		"it-verify-assembled": {copied}, // the secret itself, no copied URL
 		"benign-email-boss":   {"allow:user-named-recipient"},
 		"benign-reply-sender": {askText},
+		// The answer: the link is judged like a fetch.
+		"reply-link-exfil":   {"reply:response-link-removed:tainted-data-in-args"},
+		"reply-plain-secret": nil,                                                  // known gap: no link, nothing to judge
+		"benign-reply-link":  {"reply:response-link-removed:tainted-data-in-args"}, // known cost: a copied link
 	}
 	for _, s := range All {
 		w, ok := want[s.Name]
