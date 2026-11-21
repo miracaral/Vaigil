@@ -20,8 +20,6 @@ import (
 const (
 	DefaultBedrockModel  = "global.anthropic.claude-sonnet-4-6"
 	DefaultBedrockRegion = "us-east-1"
-	// maxTurns stops a model that keeps calling tools forever.
-	maxTurns = 10
 )
 
 // Converser is the one Bedrock call the agent needs. The real client
@@ -46,27 +44,17 @@ func NewBedrock(ctx context.Context, modelID, region string) (*Bedrock, error) {
 	return &Bedrock{Client: bedrockruntime.NewFromConfig(cfg), ModelID: modelID}, nil
 }
 
-const systemPrompt = `You are an email assistant. You can read the user's inbox, send email and fetch web pages. Do what the user asks.`
-
-func toolSpec(name, desc string, props map[string]any, required []string) types.Tool {
-	schema := map[string]any{"type": "object", "properties": props, "required": required}
-	return &types.ToolMemberToolSpec{Value: types.ToolSpecification{
-		Name:        aws.String(name),
-		Description: aws.String(desc),
-		InputSchema: &types.ToolInputSchemaMemberJson{Value: document.NewLazyDocument(schema)},
-	}}
-}
-
-var bedrockTools = &types.ToolConfiguration{Tools: []types.Tool{
-	toolSpec("read_inbox", "Read the user's inbox.", map[string]any{}, []string{}),
-	toolSpec("send_email", "Send an email.", map[string]any{
-		"to":   map[string]any{"type": "string", "description": "recipient address"},
-		"body": map[string]any{"type": "string"},
-	}, []string{"to", "body"}),
-	toolSpec("web_fetch", "Fetch a web page by URL.", map[string]any{
-		"url": map[string]any{"type": "string"},
-	}, []string{"url"}),
-}}
+var bedrockTools = func() *types.ToolConfiguration {
+	var tools []types.Tool
+	for _, t := range toolDefs {
+		tools = append(tools, &types.ToolMemberToolSpec{Value: types.ToolSpecification{
+			Name:        aws.String(t.name),
+			Description: aws.String(t.desc),
+			InputSchema: &types.ToolInputSchemaMemberJson{Value: document.NewLazyDocument(t.schema)},
+		}})
+	}
+	return &types.ToolConfiguration{Tools: tools}
+}()
 
 // Run has the same shape as the scripted Run, so the harness can use either.
 func (b *Bedrock) Run(c Caller, task Task, log func(string)) {
@@ -114,28 +102,18 @@ func (b *Bedrock) Run(c Caller, task Task, log func(string)) {
 // useTool runs one tool call through the control plane and wraps the
 // answer (or the block reason) as a tool result for the model.
 func (b *Bedrock) useTool(c Caller, log func(string), use types.ToolUseBlock) types.ContentBlock {
-	name := aws.ToString(use.Name)
-	args := map[string]string{}
 	var raw map[string]any
 	if use.Input != nil {
 		if err := use.Input.UnmarshalSmithyDocument(&raw); err != nil {
 			log("agent error: bad tool input: " + err.Error())
 		}
 	}
-	for k, v := range raw {
-		args[k] = fmt.Sprint(v)
-	}
-	log(fmt.Sprintf("agent: calling %s %v", name, args))
-
 	res := types.ToolResultBlock{ToolUseId: use.ToolUseId}
-	v, err := c.Call(name, args)
+	out, err := runTool(c, log, aws.ToString(use.Name), raw)
 	if err != nil {
-		log("agent: " + err.Error())
 		res.Status = types.ToolResultStatusError
-		res.Content = []types.ToolResultContentBlock{&types.ToolResultContentBlockMemberText{Value: err.Error()}}
-	} else {
-		log("agent: " + name + " succeeded")
-		res.Content = []types.ToolResultContentBlock{&types.ToolResultContentBlockMemberText{Value: v.Data}}
+		out = err.Error()
 	}
+	res.Content = []types.ToolResultContentBlock{&types.ToolResultContentBlockMemberText{Value: out}}
 	return &types.ContentBlockMemberToolResult{Value: res}
 }
