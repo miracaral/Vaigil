@@ -1,6 +1,9 @@
 package policy
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestUnnamedRecipientAsksUser(t *testing.T) {
 	d := Evaluate(Request{Tool: "send_email", Recipient: "someone@else.example", SessionTainted: true})
@@ -60,6 +63,16 @@ func TestSubdomainIsNotAllowlisted(t *testing.T) {
 		if d.Rule != "tainted-fetch" {
 			t.Errorf("%s: want tainted-fetch deny, got %+v", u, d)
 		}
+	}
+}
+
+// The ask for agent-written text must show the user everything it sends.
+func TestAgentTextAskShowsFullText(t *testing.T) {
+	body := "Thanks, got it. I'll get back to you soon."
+	d := Evaluate(Request{Tool: "send_email", Recipient: "anna@university.example", Subject: "Re: Lab report",
+		Body: body, UserTask: "Reply to the email in my inbox.", SessionTainted: true})
+	if d.Effect != Ask || !strings.Contains(d.Reason, body) || !strings.Contains(d.Reason, "Re: Lab report") {
+		t.Fatalf("want an ask that shows the full subject and body, got %+v", d)
 	}
 }
 

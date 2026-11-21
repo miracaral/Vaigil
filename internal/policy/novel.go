@@ -12,7 +12,9 @@ import (
 // short-pieces, path-split and value-first-split), it allows only content
 // from trusted sources: the user's task and the allowlist. Anything else
 // in the content (WHAT) of an egress call to a destination the user did
-// not name is new data, and is denied, however short.
+// not name is new data, and is denied, however short. One exception: an
+// email the agent wrote to an unnamed recipient is asked about with its
+// full text (tainted-egress-agent-text), so a reply to a sender works.
 // See docs/adr/0001-allowlist-egress-over-fragment-matching.md.
 
 // QueryParts returns each query key, each query value and the #fragment of

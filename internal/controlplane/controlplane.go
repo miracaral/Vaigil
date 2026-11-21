@@ -44,21 +44,22 @@ type Mediator struct {
 	// fragments are distinctive pieces of untrusted tool output, kept so
 	// we can spot them again if the agent copies them into a later call.
 	fragments []string
-	asks      int      // tainted-egress asks raised this session
+	asks      int      // asks raised this session (tainted-egress, tainted-egress-agent-text)
 	sent      []string // content (WHAT) of egress calls sent from a tainted context
 	audit     io.Writer
 }
 
-// askBudget is how many tainted-egress asks one session may raise. After
+// askBudget is how many asks one session may raise. After
 // that, asks become denies without reaching the user: a flood of prompts
 // is itself a sign of attack, and a tired user says yes (approval-fatigue).
 const askBudget = 2
 
-// spendAsk counts a tainted-egress ask against the budget, or turns it
-// into a deny once the budget is used up. Refused asks count too: the
-// budget limits how often the user is bothered, not how often they agree.
+// spendAsk counts an ask against the budget, or turns it into a deny once
+// the budget is used up. Every ask is about egress from a tainted context.
+// Refused asks count too: the budget limits how often the user is
+// bothered, not how often they agree.
 func (m *Mediator) spendAsk(d policy.Decision) policy.Decision {
-	if d.Effect != policy.Ask || d.Rule != "tainted-egress" {
+	if d.Effect != policy.Ask {
 		return d
 	}
 	if m.asks >= askBudget {

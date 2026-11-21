@@ -25,11 +25,15 @@ func TestNovelData(t *testing.T) {
 		{"punctuation only", fetchReq(task, "https://github.com/?find=-_-_"), "tainted-egress-novel-data"},
 		// The cost: an innocent page whose words the user never typed.
 		{"innocent but unnamed", fetchReq(task, "https://docs.aws.amazon.com/lambda/latest/dg/welcome.html"), "tainted-egress-novel-data"},
-		// Email to an unnamed recipient: subject and body are content.
+		// Email to an unnamed recipient: text the agent wrote is asked
+		// about with its full text, not denied.
 		{"email body", Request{Tool: "send_email", Recipient: "a@b.example", Body: "Thanks, got it.",
-			UserTask: "Reply to the email", SessionTainted: true}, "tainted-egress-novel-data"},
+			UserTask: "Reply to the email", SessionTainted: true}, "tainted-egress-agent-text"},
 		{"email subject", Request{Tool: "send_email", Recipient: "a@b.example", Subject: "KEY",
-			UserTask: "Reply to the email", SessionTainted: true}, "tainted-egress-novel-data"},
+			UserTask: "Reply to the email", SessionTainted: true}, "tainted-egress-agent-text"},
+		// ...but copied untrusted data is still denied.
+		{"copied email body", Request{Tool: "send_email", Recipient: "a@b.example", Body: "AWS_SECRET...",
+			UserTask: "Reply to the email", SessionTainted: true, ArgsCarryTaintedData: true}, "tainted-data-in-args"},
 		{"email of task words", Request{Tool: "send_email", Recipient: "a@b.example", Body: "reply to the email",
 			UserTask: "Reply to the email", SessionTainted: true}, "tainted-egress"},
 		// Out of scope: named recipient, clean context, unlisted domain.

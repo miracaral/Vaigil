@@ -91,8 +91,14 @@ func evalSendEmail(r Request) Decision {
 	if !r.SessionTainted {
 		return Decision{Allow, "clean-context", "no untrusted data in context"}
 	}
-	if d, novel := novelData(r); novel {
-		return d
+	if _, novel := novelData(r); novel {
+		// Text the agent wrote itself (a reply) to someone the user did not
+		// name. Copied untrusted data was denied above (tainted-data-in-args)
+		// and the mediator's coverage limit still applies, so what is left
+		// is new text: show all of it and let the user decide, once.
+		return Decision{Ask, "tainted-egress-agent-text",
+			fmt.Sprintf("the agent wrote text the user never gave, to %q; it will send subject %q, body %q",
+				r.Recipient, r.Subject, r.Body)}
 	}
 	// The recipient may come from the data (e.g. "reply to the sender").
 	// The content is made of trusted words only (novel-data ran first), so
