@@ -29,7 +29,7 @@ go test -count=1 ./...
 | Path | What |
 | --- | --- |
 | `internal/controlplane` | Enforcement point: policy check, taint fragments, argument decoding (`normalize.go`), cumulative taint coverage (`coverage.go`, `tainted-coverage-exceeded`), ask/approve, per-session ask budget (`askBudget`), audit log |
-| `internal/policy` | Stateless rules in Go: `tainted-data-in-args` (deny), `tainted-fetch` (deny, exact hosts), `tainted-egress-novel-data` (deny, `novel.go`), `tainted-egress-agent-text` (ask), `tainted-egress` (ask) |
+| `internal/policy` | Stateless rules in Go: `tainted-data-in-args` (deny), `tainted-fetch` (deny, exact hosts), `tainted-egress-userinfo` (deny), `tainted-egress-novel-data` (deny, `novel.go`), `tainted-egress-agent-text` (ask), `tainted-egress` (ask) |
 | `internal/taint` | Trusted / untrusted labels; byte coverage (`coverage.go`) shared by control plane and harness |
 | `policies/vaigil.cedar` | Same rules in Cedar, not wired in yet |
 | `internal/agent` | Scripted agent that acts like a hijacked LLM (obeys hidden instructions, default) and a Bedrock agent (`bedrock.go`, Converse API with tool use, `-agent=bedrock`); both call tools through the control plane; tools stay in-memory mocks |
@@ -53,7 +53,7 @@ go test -count=1 ./...
 
 ## Open / next
 
-1. Decide how to close `userinfo-exfil` (secret in `user:password@` of an exact allowlisted host): treat userinfo as content, or deny URLs with userinfo from a tainted context. Known gaps also open: `trusted-word-bits` (accepted until value-level taint), `email-spaced-secret` (user approves the agent-text ask).
+1. Known gaps still open: `trusted-word-bits` (accepted until value-level taint), `email-spaced-secret` (user approves the agent-text ask). Closed: `userinfo-exfil` (`tainted-egress-userinfo` denies any URL with userinfo from a tainted context).
 2. Wire in cedar-go, and decide how to model "ask", the per-session ask budget and the novel-data allowlist in Cedar (`policies/vaigil.cedar` is out of date: no novel-data, no exact hosts, no budget).
 3. Bedrock agent is built (not run yet). Waiting for the Bedrock model quota (currently 0, AWS cases open; Claude is billed via AWS Marketplace, credit coverage not confirmed). Then: one scenario with Sonnet 4.6 (`-agent=bedrock -only <scenario>`), then a model comparison table (which models obey the injection, how many asks real tasks need, to check the ask budget of 2).
 4. Ollama 0.40.16 (Homebrew) with `qwen3:8b` is installed on this Mac, not wired into Vaigil: decide whether to add a local agent while the Bedrock quota is 0.
