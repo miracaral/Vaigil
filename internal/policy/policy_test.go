@@ -52,6 +52,17 @@ func TestUnlistedFetchInTaintedContextIsDenied(t *testing.T) {
 	}
 }
 
+// Closes subdomain-exfil: a subdomain is another host, and its labels can
+// carry data, so only the exact allowlisted host is accepted.
+func TestSubdomainIsNotAllowlisted(t *testing.T) {
+	for _, u := range []string{"https://4157.github.com/", "https://github.com.attacker.example/"} {
+		d := Evaluate(Request{Tool: "web_fetch", URL: u, AllowedDomains: []string{"github.com"}, SessionTainted: true})
+		if d.Rule != "tainted-fetch" {
+			t.Errorf("%s: want tainted-fetch deny, got %+v", u, d)
+		}
+	}
+}
+
 func TestFetchInCleanContextIsAllowed(t *testing.T) {
 	if d := Evaluate(Request{Tool: "web_fetch", URL: "https://github.com/x"}); d.Effect != Allow {
 		t.Fatalf("want allow, got %+v", d)

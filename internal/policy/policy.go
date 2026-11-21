@@ -36,7 +36,8 @@ type Request struct {
 	// UserNamedRecipients are addresses the user typed in their own request.
 	UserNamedRecipients []string
 	// AllowedDomains may be fetched from a tainted context if the user
-	// approves; any other domain is denied.
+	// approves; any other host is denied. Matching is exact: a subdomain
+	// of an allowed domain is another host (subdomain-exfil).
 	AllowedDomains []string
 	// SessionTainted is true once untrusted content has entered the agent's context.
 	SessionTainted bool
@@ -112,7 +113,7 @@ func evalWebFetch(r Request) Decision {
 	host := strings.ToLower(u.Hostname())
 	for _, d := range r.AllowedDomains {
 		d = strings.ToLower(d)
-		if host == d || strings.HasSuffix(host, "."+d) {
+		if host == d {
 			if nd, novel := novelData(r); novel {
 				return nd
 			}
