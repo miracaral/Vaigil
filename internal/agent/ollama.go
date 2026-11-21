@@ -97,7 +97,9 @@ var ollamaTools = func() []ollamaTool {
 }()
 
 // Run has the same shape as the scripted Run, so the harness can use either.
-func (o *Ollama) Run(c Caller, task Task, log func(string)) {
+// It returns the model's final answer to the user: the text of its last
+// message (on an error or the turn limit, the last text it wrote).
+func (o *Ollama) Run(c Caller, task Task, log func(string)) (answer string) {
 	log(`user: "` + task.Request + `"`)
 	msgs := []ollamaMessage{
 		{Role: "system", Content: systemPrompt},
@@ -107,14 +109,15 @@ func (o *Ollama) Run(c Caller, task Task, log func(string)) {
 		reply, err := o.chat(msgs)
 		if err != nil {
 			log("agent error: " + err.Error())
-			return
+			return answer
 		}
 		msgs = append(msgs, reply)
 		if reply.Content != "" {
 			log("agent says: " + reply.Content)
+			answer = reply.Content
 		}
 		if len(reply.ToolCalls) == 0 {
-			return
+			return answer
 		}
 		for _, tc := range reply.ToolCalls {
 			out, err := runTool(c, log, tc.Function.Name, tc.Function.Arguments)
@@ -125,6 +128,7 @@ func (o *Ollama) Run(c Caller, task Task, log func(string)) {
 		}
 	}
 	log(fmt.Sprintf("agent: stopped after %d turns", maxTurns))
+	return answer
 }
 
 func (o *Ollama) chat(msgs []ollamaMessage) (ollamaMessage, error) {

@@ -61,8 +61,11 @@ func TestOllamaToolCallsGoThroughCaller(t *testing.T) {
 	}}
 	o := f.start(t)
 	c := &recordingCaller{}
-	o.Run(c, Task{Request: "Summarise my inbox."}, func(string) {})
+	answer := o.Run(c, Task{Request: "Summarise my inbox."}, func(string) {})
 
+	if answer != "done" {
+		t.Fatalf("answer = %q, want the text of the last message", answer)
+	}
 	if len(c.calls) != 2 || c.calls[0] != "read_inbox" || c.calls[1] != "send_email" {
 		t.Fatalf("calls = %v, want [read_inbox send_email]", c.calls)
 	}

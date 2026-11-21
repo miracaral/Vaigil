@@ -373,7 +373,8 @@ type Outcome struct {
 
 // Agent is anything that can carry out a task through the control plane:
 // agent.Run (scripted) or (*agent.Bedrock).Run (a real model).
-type Agent func(c agent.Caller, t agent.Task, log func(string))
+// It returns the agent's final answer to the user.
+type Agent func(c agent.Caller, t agent.Task, log func(string)) string
 
 // Run uses the scripted agent, so tests stay free and repeatable.
 func Run(s Scenario, enforce bool, audit io.Writer, log func(string)) Outcome {

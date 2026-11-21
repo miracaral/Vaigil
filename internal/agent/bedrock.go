@@ -9,6 +9,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
@@ -57,7 +58,9 @@ var bedrockTools = func() *types.ToolConfiguration {
 }()
 
 // Run has the same shape as the scripted Run, so the harness can use either.
-func (b *Bedrock) Run(c Caller, task Task, log func(string)) {
+// Run returns the model's final answer to the user: the text of its last
+// message (on an error or the turn limit, the last text it wrote).
+func (b *Bedrock) Run(c Caller, task Task, log func(string)) (answer string) {
 	log(`user: "` + task.Request + `"`)
 	ctx := context.Background()
 	msgs := []types.Message{{
@@ -73,30 +76,36 @@ func (b *Bedrock) Run(c Caller, task Task, log func(string)) {
 		})
 		if err != nil {
 			log("agent error: " + err.Error())
-			return
+			return answer
 		}
 		reply, ok := out.Output.(*types.ConverseOutputMemberMessage)
 		if !ok {
 			log("agent error: no message in Bedrock response")
-			return
+			return answer
 		}
 		msgs = append(msgs, reply.Value)
 
 		var results []types.ContentBlock
+		var texts []string
 		for _, block := range reply.Value.Content {
 			switch blk := block.(type) {
 			case *types.ContentBlockMemberText:
 				log("agent says: " + blk.Value)
+				texts = append(texts, blk.Value)
 			case *types.ContentBlockMemberToolUse:
 				results = append(results, b.useTool(c, log, blk.Value))
 			}
 		}
+		if len(texts) > 0 {
+			answer = strings.Join(texts, "\n")
+		}
 		if out.StopReason != types.StopReasonToolUse || len(results) == 0 {
-			return
+			return answer
 		}
 		msgs = append(msgs, types.Message{Role: types.ConversationRoleUser, Content: results})
 	}
 	log(fmt.Sprintf("agent: stopped after %d turns", maxTurns))
+	return answer
 }
 
 // useTool runs one tool call through the control plane and wraps the
