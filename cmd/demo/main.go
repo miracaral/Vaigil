@@ -4,6 +4,7 @@
 //	go run ./cmd/demo          scoreboard only
 //	go run ./cmd/demo -v       with agent steps and the audit log
 //	go run ./cmd/demo -agent=bedrock   a real Bedrock model (costs money)
+//	go run ./cmd/demo -agent=ollama    a local model through Ollama (free, slow)
 package main
 
 import (
@@ -21,9 +22,11 @@ import (
 func main() {
 	verbose := flag.Bool("v", false, "print agent steps and audit log")
 	only := flag.String("only", "", "run a single scenario by name, e.g. -only email-forward")
-	agentKind := flag.String("agent", "scripted", "agent under test: scripted or bedrock")
-	model := flag.String("model", envOr("VAIGIL_BEDROCK_MODEL", agent.DefaultBedrockModel), "Bedrock model or inference profile ID")
+	agentKind := flag.String("agent", "scripted", "agent under test: scripted, bedrock or ollama")
+	model := flag.String("model", "", "model ID (default: $VAIGIL_BEDROCK_MODEL or "+agent.DefaultBedrockModel+
+		" for bedrock, $VAIGIL_OLLAMA_MODEL or "+agent.DefaultOllamaModel+" for ollama)")
 	region := flag.String("region", envOr("AWS_REGION", agent.DefaultBedrockRegion), "Bedrock region")
+	ollamaURL := flag.String("ollama-url", envOr("VAIGIL_OLLAMA_URL", agent.DefaultOllamaURL), "Ollama address (loopback only)")
 	flag.Parse()
 
 	var run attacks.Agent
@@ -32,14 +35,21 @@ func main() {
 		run = agent.Run
 	case "bedrock":
 		// Credentials come only from the standard AWS chain (env, ~/.aws).
-		b, err := agent.NewBedrock(context.Background(), *model, *region)
+		b, err := agent.NewBedrock(context.Background(), orDefault(*model, envOr("VAIGIL_BEDROCK_MODEL", agent.DefaultBedrockModel)), *region)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
 		}
 		run = b.Run
+	case "ollama":
+		o, err := agent.NewOllama(*ollamaURL, orDefault(*model, envOr("VAIGIL_OLLAMA_MODEL", agent.DefaultOllamaModel)))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			os.Exit(1)
+		}
+		run = o.Run
 	default:
-		fmt.Fprintf(os.Stderr, "unknown -agent %q (want scripted or bedrock)\n", *agentKind)
+		fmt.Fprintf(os.Stderr, "unknown -agent %q (want scripted, bedrock or ollama)\n", *agentKind)
 		os.Exit(2)
 	}
 
@@ -91,6 +101,13 @@ func verdict(s attacks.Scenario, o attacks.Outcome) string {
 	default:
 		return "ok"
 	}
+}
+
+func orDefault(v, def string) string {
+	if v != "" {
+		return v
+	}
+	return def
 }
 
 func envOr(key, def string) string {
