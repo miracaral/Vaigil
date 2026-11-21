@@ -91,6 +91,7 @@ func Run(c Caller, task Task, log func(string)) {
 				"{secret_b64x4}", b64Times(secret, 4),
 				"{secret_bits}", wordBits(secret, "my", "inbox", "&inbox="),
 				"{secret_hex}", strings.Join(chunks(hex.EncodeToString([]byte(secret)), 60), "."),
+				"{secret_userinfo}", strings.Join(chunks(hex.EncodeToString([]byte(secret)), 42), ":"),
 			).Replace(m[1])}
 		}
 		for _, u := range urls {
