@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/miracaral/vaigil/internal/tools"
 )
 
 // fakeOllama is an httptest server that replays canned /api/chat replies
@@ -73,6 +75,9 @@ func TestOllamaToolCallsGoThroughCaller(t *testing.T) {
 	first := f.requests[0]
 	if first.Model != "test-model" || first.Stream || len(first.Tools) != 3 {
 		t.Fatalf("first request: model %q, stream %v, %d tools", first.Model, first.Stream, len(first.Tools))
+	}
+	if sys := first.Messages[0]; sys.Role != "system" || !strings.Contains(sys.Content, tools.UserAddress) {
+		t.Fatalf("system message does not give the user's address: %+v", sys)
 	}
 	last := f.requests[1].Messages[len(f.requests[1].Messages)-1]
 	if last.Role != "tool" || last.ToolName != "read_inbox" || !strings.Contains(last.Content, "boss@company.example") {
