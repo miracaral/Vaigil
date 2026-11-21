@@ -5,6 +5,7 @@
 //	go run ./cmd/demo -v       with agent steps and the audit log
 //	go run ./cmd/demo -agent=bedrock   a real Bedrock model (costs money)
 //	go run ./cmd/demo -agent=ollama    a local model through Ollama (free, slow)
+//	go run ./cmd/demo -runs 5          each scenario 5 times, reported as rates
 package main
 
 import (
@@ -13,6 +14,8 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/miracaral/vaigil/attacks"
 	"github.com/miracaral/vaigil/internal/agent"
@@ -27,7 +30,12 @@ func main() {
 		" for bedrock, $VAIGIL_OLLAMA_MODEL or "+agent.DefaultOllamaModel+" for ollama)")
 	region := flag.String("region", envOr("AWS_REGION", agent.DefaultBedrockRegion), "Bedrock region")
 	ollamaURL := flag.String("ollama-url", envOr("VAIGIL_OLLAMA_URL", agent.DefaultOllamaURL), "Ollama address (loopback only)")
+	runs := flag.Int("runs", 1, "run each scenario N times and report each column as rates (a real model samples, so one run is an example, not a rate)")
 	flag.Parse()
+	if *runs < 1 {
+		fmt.Fprintln(os.Stderr, "-runs must be at least 1")
+		os.Exit(2)
+	}
 
 	var run attacks.Agent
 	switch *agentKind {
@@ -60,21 +68,102 @@ func main() {
 		log = func(s string) { fmt.Println("    " + s) }
 	}
 
-	fmt.Printf("%-20s %-28s %-22s %-22s\n", "scenario", "area", "without control plane", "with control plane")
+	// One run streams its rows as before. Several runs print the table at
+	// the end, with columns as wide as the longest rate.
+	header := [4]string{"scenario", "area", "without control plane", "with control plane"}
+	var rows [][4]string
+	if *runs == 1 {
+		printRow(header, 22)
+	}
 	for _, s := range attacks.All {
 		if *only != "" && s.Name != *only {
 			continue
 		}
-		if *verbose {
-			fmt.Printf("\n--- %s (without) ---\n", s.Name)
+		off, on := runScenario(run, s, *runs, *verbose, audit, log)
+		row := [4]string{s.Name, s.Area, tally(off), tally(on)}
+		if *runs == 1 {
+			printRow(row, 22)
+		} else {
+			rows = append(rows, row)
 		}
-		off := attacks.RunWith(run, s, false, audit, log)
-		if *verbose {
-			fmt.Printf("--- %s (with) ---\n", s.Name)
-		}
-		on := attacks.RunWith(run, s, true, audit, log)
-		fmt.Printf("%-20s %-28s %-22s %-22s\n", s.Name, s.Area, verdict(s, off), verdict(s, on))
 	}
+	if *runs > 1 {
+		width := 22
+		for _, r := range rows {
+			width = max(width, len(r[2]), len(r[3]))
+		}
+		fmt.Println()
+		printRow(header, width)
+		for _, r := range rows {
+			printRow(r, width)
+		}
+	}
+}
+
+func printRow(r [4]string, width int) {
+	fmt.Printf("%-20s %-28s %-*s %-*s\n", r[0], r[1], width, r[2], width, r[3])
+}
+
+// runScenario runs s runs times without and runs times with the control
+// plane, and returns the verdict of each run.
+func runScenario(run attacks.Agent, s attacks.Scenario, runs int, verbose bool, audit io.Writer, log func(string)) (off, on []string) {
+	for i := 1; i <= runs; i++ {
+		n := ""
+		if runs > 1 {
+			n = fmt.Sprintf(", run %d/%d", i, runs)
+		}
+		if verbose {
+			fmt.Printf("\n--- %s (without%s) ---\n", s.Name, n)
+		}
+		off = append(off, verdict(s, attacks.RunWith(run, s, false, audit, log)))
+		if verbose {
+			fmt.Printf("--- %s (with%s) ---\n", s.Name, n)
+		}
+		on = append(on, verdict(s, attacks.RunWith(run, s, true, audit, log)))
+	}
+	return off, on
+}
+
+// verdictOrder ranks verdicts from worst to best; tally uses it to break
+// ties. Longer prefixes come before shorter ones they start with.
+var verdictOrder = []string{"LEAKED", "partial", "sent to user", "ok (user approved)", "blocked",
+	"resisted (model)", "no leak (allowed)", "task broken", "ok"}
+
+func rank(v string) int {
+	for i, p := range verdictOrder {
+		if strings.HasPrefix(v, p) {
+			return i
+		}
+	}
+	return len(verdictOrder)
+}
+
+// tally reports the verdicts of several runs as rates, most frequent
+// first, ties worst first: "LEAKED 3/5, sent to user 1/5, resisted
+// (model) 1/5". A single run is reported as its verdict alone.
+func tally(verdicts []string) string {
+	if len(verdicts) == 1 {
+		return verdicts[0]
+	}
+	count := map[string]int{}
+	var seen []string
+	for _, v := range verdicts {
+		if count[v] == 0 {
+			seen = append(seen, v)
+		}
+		count[v]++
+	}
+	sort.SliceStable(seen, func(i, j int) bool {
+		if count[seen[i]] != count[seen[j]] {
+			return count[seen[i]] > count[seen[j]]
+		}
+		return rank(seen[i]) < rank(seen[j])
+	})
+	parts := make([]string, len(seen))
+	for i, v := range seen {
+		parts[i] = fmt.Sprintf("%s %d/%d", v, count[v], len(verdicts))
+	}
+	return strings.Join(parts, ", ")
 }
 
 func verdict(s attacks.Scenario, o attacks.Outcome) string {
