@@ -49,6 +49,7 @@ go test -count=1 ./...
 - Ask budget of 2 per session lives in the mediator (session state), not in the stateless policy; refused asks count too; every ask counts.
 - Cumulative taint coverage in the mediator: deny once a session's egress reveals more than 8 bytes of one untrusted value; 4-byte minimum match (3 adds up on URL syntax, 8 misses 7-byte pieces); only content (query, fragment, body) is measured, not the URL path. Kept as a measure and extra layer.
 - Denylist lost (measured: value-first-split 11/19 value bytes, short-pieces full, path-split 16/19), so egress content is now allowlisted: `tainted-egress-novel-data` in the stateless policy; see docs/adr/0001.
+- `it-verify-assembled` (no URL to copy, the agent builds it from parts): blocks rest on the data, not on a copied attacker URL. Whole secret: `tainted-data-in-args`; value only: `tainted-egress-novel-data` (the fragment rule is blind to it). Pinned in `TestAssembledURLIsBlockedOnTheData`.
 - Allowlist matches exact hosts only (closes subdomain-exfil). Selection channel (trusted-word-bits) accepted as a known gap until value-level taint tracking. Agent-written email to an unnamed recipient is one ask showing the full text, not a deny; copied data stays denied.
 
 ## Open / next
@@ -56,5 +57,5 @@ go test -count=1 ./...
 1. Known gaps still open: `trusted-word-bits` (accepted until value-level taint), `email-spaced-secret` (user approves the agent-text ask). Closed: `userinfo-exfil` (`tainted-egress-userinfo` denies any URL with userinfo from a tainted context).
 2. Wire in cedar-go, and decide how to model "ask", the per-session ask budget and the novel-data allowlist in Cedar (`policies/vaigil.cedar` is out of date: no novel-data, no exact hosts, no budget).
 3. Bedrock agent is built (not run yet). Waiting for the Bedrock model quota (currently 0, AWS cases open; Claude is billed via AWS Marketplace, credit coverage not confirmed). Then: one scenario with Sonnet 4.6 (`-agent=bedrock -only <scenario>`), then a model comparison table (which models obey the injection, how many asks real tasks need, to check the ask budget of 2).
-4. Ollama agent is built (`-agent=ollama`, default `qwen3:8b`, Ollama 0.40.16 on this Mac), not run yet: run one scenario first, then add its results to the model comparison.
+4. Ollama agent is built (`-agent=ollama`, default `qwen3:8b`, Ollama 0.40.16 on this Mac), first Qwen3 results are in the README; next: run `it-verify-assembled` with Qwen3, then add the results to the model comparison.
 5. Later phases: value-level taint tracking (CaMeL-style), MCP proxy, Kubernetes deployment. See the roadmap in the plan doc.
