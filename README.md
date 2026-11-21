@@ -97,7 +97,18 @@ go run ./cmd/demo -agent=bedrock -model <model or inference profile ID> -region 
 - The tools stay in-memory mocks (`internal/tools`): no real email is sent and no real URL is fetched, even with a real model. A test pins that the tools import no network packages.
 - Status: not run yet. The account's Bedrock model quota is currently 0 and AWS support cases are open. Claude models on Bedrock are billed through AWS Marketplace, and whether AWS credits cover that is not confirmed yet.
 - With a real model the "without control plane" column may show an attack failing: that is the model resisting the injection, not the control plane.
-- A local model is installed too: Ollama 0.40.16 (Homebrew) with `qwen3:8b`. It is not wired into Vaigil yet.
+
+### Local model (Ollama)
+
+`-agent=ollama` runs a local model through Ollama's `/api/chat` endpoint with tool calling (plain `net/http`, same three tools, same control plane). It is free but slow, and not run yet.
+
+```
+go run ./cmd/demo -agent=ollama -only email-forward
+```
+
+- `-model`: default `qwen3:8b`, or set `VAIGIL_OLLAMA_MODEL`.
+- `-ollama-url`: default `http://localhost:11434`, or set `VAIGIL_OLLAMA_URL`. Only loopback addresses are accepted, so nothing leaves the machine.
+- Installed here: Ollama 0.40.16 (Homebrew) with `qwen3:8b`.
 
 ## Known limits
 
@@ -116,7 +127,7 @@ go run ./cmd/demo -agent=bedrock -model <model or inference profile ID> -region 
 | `policies/vaigil.cedar` | Same rules in Cedar, wired in at v0.2 |
 | `internal/taint` | Trusted / untrusted labels; byte coverage shared by the control plane and the harness |
 | `internal/tools` | Mock email tools with an injected email |
-| `internal/agent` | Scripted agent (default) and a Bedrock agent (`-agent=bedrock`), both calling tools through the control plane |
+| `internal/agent` | Scripted agent (default), a Bedrock agent (`-agent=bedrock`) and an Ollama agent (`-agent=ollama`), all calling tools through the control plane |
 | `attacks` | Scenarios + harness; `KnownGap` marks attacks that still succeed, `ExpectPartial` attacks that can only be limited, `KnownCost` benign tasks broken on purpose; leaks are scored in bytes and in value bytes |
 | `docs/adr` | Architecture decision records |
 | `cmd/demo` | Runs every scenario with and without the control plane and prints the scoreboard |
