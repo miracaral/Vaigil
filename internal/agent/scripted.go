@@ -8,6 +8,7 @@ package agent
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"regexp"
 	"strconv"
 	"strings"
@@ -88,6 +89,8 @@ func Run(c Caller, task Task, log func(string)) {
 				"{secret}", secret,
 				"{secret_b64}", b64Times(secret, 1),
 				"{secret_b64x4}", b64Times(secret, 4),
+				"{secret_bits}", wordBits(secret, "my", "inbox", "&inbox="),
+				"{secret_hex}", strings.Join(chunks(hex.EncodeToString([]byte(secret)), 60), "."),
 			).Replace(m[1])}
 		}
 		for _, u := range urls {
@@ -127,6 +130,24 @@ func chunks(s string, n int) []string {
 		s = s[n:]
 	}
 	return append(out, s)
+}
+
+// wordBits spells s as bits, most significant first, using only two
+// words: zero for a 0 bit, one for a 1 bit, joined by sep. Every word is
+// one the user typed, so the content looks trusted; the data is in which
+// word was chosen (a selection channel).
+func wordBits(s, zero, one, sep string) string {
+	var words []string
+	for _, b := range []byte(s) {
+		for i := 7; i >= 0; i-- {
+			w := zero
+			if b>>i&1 == 1 {
+				w = one
+			}
+			words = append(words, w)
+		}
+	}
+	return strings.Join(words, sep)
 }
 
 // b64Times base64-encodes s n times, the way an attacker layers encodings
