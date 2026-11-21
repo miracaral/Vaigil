@@ -52,11 +52,11 @@ Option B, as a stateless policy rule (`tainted-egress-novel-data`) in `internal/
 Measured after the change:
 
 - All ten split/encode/injection attacks are blocked. `short-pieces`, `path-split` and `value-first-split` leak 0 bytes, denied by the new rule before any ask.
-- **Cost: `benign-reply-sender` breaks.** The reply text ("Thanks, got it...") was written by the agent, not typed by the user, so it counts as new data. The scenario is marked `KnownCost`, and a test pins that it stays broken until the cost is addressed on purpose.
+- **Cost: `benign-reply-sender` breaks** (fixed by follow-up decision 3). The reply text ("Thanks, got it...") was written by the agent, not typed by the user, so it counts as new data. The scenario is marked `KnownCost`, and a test pins that it stays broken until the cost is addressed on purpose.
 - **Cost: innocent fetches break** when the URL holds words the user never typed, for example `docs.aws.amazon.com/lambda/latest/dg/welcome.html` for the task "Find the Lambda pricing page" (pinned in `internal/policy/novel_test.go`). Any real fetch from a tainted context now needs its path and query to come from the user's words.
 - **New known gaps** (scenarios marked `KnownGap`, both leak the whole secret with one approved ask):
   - `trusted-word-bits`, a selection channel: the content is only "my" and "inbox", both trusted, and the secret is in which word is chosen, one bit per query value. Any allowlist of more than one word has this channel; its capacity grows with the number of values per call.
-  - `subdomain-exfil`: the host is WHERE, and any subdomain of an allowlisted domain is accepted, so a hex-encoded secret in the subdomain is never looked at.
+  - `subdomain-exfil` (closed by follow-up decision 1): the host is WHERE, and any subdomain of an allowlisted domain is accepted, so a hex-encoded secret in the subdomain is never looked at.
 
 ## Follow-up decisions (2026-11-21)
 
